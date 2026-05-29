@@ -1,61 +1,42 @@
-// RateHandler.js
 const CacheMaid = require('./CacheMaid');
 
 const LIMIT_CONFIG = {
-    MAX_PER_MINUTE: 3,
-    WINDOW: 60_000,        // 1 minute
-    MAX_USERS: 1000        // hard cap safety
+    WINDOW: 60_000,        // 1 minute reset
+    MAX_USERS: 1000        // safety cap
 };
 
-// create a CacheMaid map for user rates
+// Create the CacheMaid map
 const rateCache = CacheMaid.new('rate-handler');
 
-// increment user rate
+/**
+ * Increments the user's command count for the current minute
+ */
 function AddRate(userId) {
-    const now = Date.now();
-    const entry = rateCache.map.get(userId);
-
-    if (!entry || (now - entry.ts > LIMIT_CONFIG.WINDOW)) {
-        // reset window
-        rateCache.map.set(userId, {
-            count: 1,
-            ts: now
-        });
-    } else {
-        entry.count++;
+    const currentCount = rateCache.map.get(userId) || 0;
+    
+    // Safety check for map size
+    if (rateCache.map.size < LIMIT_CONFIG.MAX_USERS) {
+        rateCache.map.set(userId, currentCount + 1);
     }
+
+    return rateCache.map.get(userId) || 0;
 }
 
-// get current rate count
+/**
+ * Gets the current count for the user
+ */
 function GetRate(userId) {
-    const entry = rateCache.map.get(userId);
-    if (!entry) return 0;
-
-    const now = Date.now();
-
-    // expired → delete + reset
-    if (now - entry.ts > LIMIT_CONFIG.WINDOW) {
-        rateCache.map.delete(userId);
-        return 0;
-    }
-
-    return entry.count;
+    return rateCache.map.get(userId) || 0;
 }
 
-// use CacheMaid debris to auto-clear expired entries every window
 setInterval(() => {
-    const now = Date.now();
-
-    for (const [userId, entry] of rateCache.map) {
-        if (now - entry.ts > LIMIT_CONFIG.WINDOW) {
-            rateCache.map.delete(userId);
-        }
+    // Completely wipe the rate-handler map
+    rateCache.map.clear();
+    
+    if (process.env.DEBUG_MODE === 'true') {
+        console.log(`[RateHandler] Global rate limit window reset.`);
     }
-
-    // hard cap protection via evict
-    CacheMaid.evict('commands', LIMIT_CONFIG.MAX_USERS);
-
-}, 60_000);
+}, LIMIT_CONFIG.WINDOW);
 
 module.exports = {
     AddRate,
