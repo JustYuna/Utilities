@@ -3,15 +3,56 @@ const path = require("path");
 const fs = require('fs');
 
 const dbPath = path.join(__dirname, "datastore.db");
-const db = new sqlite3.Database(dbPath, (err) => {
+let db = new sqlite3.Database(dbPath, (err) => {
   if (err) console.error("DB open error:", err);
   else console.log("Database opened.");
 });
 
 // Single-table structure, nested objects stored as JSON
-const defaultData = {};
+const defaultData = {
+  GUILD: "NONE",
+  MAIN_CURRENCY: 0,
+  SECOND_CURRENCY: 0,
+  DEPOSITED: 0,
 
-const defaultGlobalData = {};
+  TOTAL_MAIN_CURRENCY: 0,
+  TOTAL_SECOND_CURRENCY: 0,
+
+  GAMBLED: 0,
+  ROBBED: 0,
+
+  LEVEL: { LEVEL: 0, EXPERIENCE: 0 },
+  FACTORY: { LEVEL: 1, LAST_CLAIM: 1779726897264 },
+
+  UPGRADES: { BANK: 1 },
+  DAILY: { LAST: "1999.00.00", STREAK: 0 },
+  VOTE_BOOST: 0,
+
+  SETTING_HIDDEN_FROM_LEADERBOARD: false,
+
+  ONBOARDING_COMPLETED: false,
+ 
+  REPUTATION_COUNT: 0,
+  REPUTATION_COOLDOWN: 0,
+};
+
+const defaultGlobalData = {
+  TOWERSIZE: 0,
+  COMMANDS_USED: 0,
+  TOTAL_SESSIONS: 0,
+  GLOBAL_MULTIPLIER: 1
+};
+
+const defaultGuildDAta = {
+  NAME: "",
+  OWNER_ID: "",
+
+  LEVEL: 1,
+  BANK: 0,
+  MEMBERS: [],
+  INVITES: [],
+  CREATED_AT: Date.now(),
+};
 
 // ------------------ Helpers ------------------
 function runAsync(sql, params = []) {
@@ -84,11 +125,12 @@ async function initDB() {
 
 // ------------------ Create / Get / Set ------------------
 async function createUser(userId) {
-  await runAsync(`INSERT OR IGNORE INTO users (id) VALUES (?)`, [userId]);
+  await runAsync(`INSERT OR IGNORE INTO users (id, onboarding_completed, setting_hidden_from_leaderboard) VALUES (?, 0, 0)`, [userId]);
 }
 
 async function GetAsync(userId, key) {
-  await createUser(userId);
+  await createUser(userId); // sicherstellen, dass der User existiert
+
   const row = await getAsync(`SELECT * FROM users WHERE id = ?`, [userId]);
   if (!row) return defaultData[key];
 
@@ -100,7 +142,7 @@ async function GetAsync(userId, key) {
 }
 
 async function SetAsync(userId, newData) {
-    await createUser(userId);
+    await createUser(userId); // sicherstellen, dass der User existiert
 
     const keys = Object.keys(newData);
     const vals = Object.values(newData).map(v => typeof v === "object" ? JSON.stringify(v) : v);
@@ -186,6 +228,24 @@ async function SetGlobalAsync(newData) {
   }
 }
 
+// ------------------ Guild Helpers ------------------
+async function initGuilds() {
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS guilds (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      owner_id TEXT NOT NULL,
+      bank INTEGER DEFAULT 0,
+      level INTEGER DEFAULT 1,
+      experience INTEGER DEFAULT 0,
+      members TEXT DEFAULT '[]',
+      invites TEXT DEFAULT '[]',
+      created_at INTEGER DEFAULT 0,
+      settings TEXT DEFAULT '{}'
+    );
+  `);
+}
+
 // ------------------ Remove User ------------------
 async function removeUser(userId) {
     return new Promise((resolve, reject) => {
@@ -254,5 +314,5 @@ module.exports = {
   removeUser,
 
   // Startup
-  initDB, initGlobals
+  initDB, initGlobals, initGuilds
 };
