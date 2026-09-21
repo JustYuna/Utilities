@@ -29,7 +29,6 @@ function localization_get(key = "", lang = os_get_language())
 	if (!_supported) { lang = localization.fallback; };
 
 	var _struct_has = struct_exists(localization.translations, key);
-	show_debug_message(string(_struct_has))
 	if (!_struct_has) {
 		if (localization.translations[key][lang])
 		{
@@ -40,7 +39,6 @@ function localization_get(key = "", lang = os_get_language())
 	};
 
 	var _translation = localization.translations[$ key];
-
 	_struct_has = struct_exists(_translation, lang);
 
 	if (!_struct_has) { return localization.translations[$ key][$ localization.fallback]; };
