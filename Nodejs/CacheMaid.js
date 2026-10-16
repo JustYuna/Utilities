@@ -7,7 +7,6 @@
  * Creator - @Yuna
  */
 
-const { warn } = require('node:console');
 const Snowflake = require('nodejs-snowflake');
 
 const GLOBAL_MAP = new Map();
